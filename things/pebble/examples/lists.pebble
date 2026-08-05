@@ -1,0 +1,37 @@
+fn map(list, f) {
+    let result = [];
+    for (let i = 0; i < len(list); i = i + 1) {
+        push(result, f(list[i]));
+    }
+    return result;
+}
+
+fn filter(list, predicate) {
+    let result = [];
+    for (let i = 0; i < len(list); i = i + 1) {
+        if (predicate(list[i])) {
+            push(result, list[i]);
+        }
+    }
+    return result;
+}
+
+fn reduce(list, f, initial) {
+    let acc = initial;
+    for (let i = 0; i < len(list); i = i + 1) {
+        acc = f(acc, list[i]);
+    }
+    return acc;
+}
+
+let numbers = range(1, 11);
+print(numbers);
+
+let squares = map(numbers, fn(x) { return x * x; });
+print(squares);
+
+let evens = filter(numbers, fn(x) { return x % 2 == 0; });
+print(evens);
+
+let sum = reduce(numbers, fn(a, b) { return a + b; }, 0);
+print("sum:", sum);

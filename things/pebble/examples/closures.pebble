@@ -1,0 +1,23 @@
+fn make_bank_account(balance) {
+    fn deposit(amount) {
+        balance = balance + amount;
+        return balance;
+    }
+    fn withdraw(amount) {
+        if (amount > balance) {
+            print("insufficient funds");
+            return balance;
+        }
+        balance = balance - amount;
+        return balance;
+    }
+    return [deposit, withdraw];
+}
+
+let account = make_bank_account(100);
+let deposit = account[0];
+let withdraw = account[1];
+
+print(deposit(50));   // 150
+print(withdraw(30));  // 120
+print(withdraw(1000)); // insufficient funds, still 120

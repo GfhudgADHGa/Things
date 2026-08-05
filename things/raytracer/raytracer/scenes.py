@@ -44,7 +44,7 @@ def three_spheres(aspect_ratio: float = 16 / 9):
     return world, camera
 
 
-def random_field(aspect_ratio: float = 3 / 2, seed: int = 42, n: int = 8):
+def random_field(aspect_ratio: float = 3 / 2, seed: int = 42, n: int = 5):
     """A field of small random spheres around three large feature spheres.
 
     Loosely inspired by the cover render of "Ray Tracing in One Weekend".
