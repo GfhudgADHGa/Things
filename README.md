@@ -1,0 +1,18 @@
+# Things
+
+A growing collection of small, self-contained software projects. No overarching
+theme beyond: build something real, make it work, test it, write it down.
+
+Each project lives in its own directory under [`things/`](things/), with its
+own README, dependencies, and test suite. Nothing here depends on anything
+else in the repo.
+
+## Catalog
+
+| Thing | Description |
+|---|---|
+| [`raytracer`](things/raytracer/) | A ray tracer written from scratch in Python: spheres, planes, diffuse/metal/glass materials, shadows, reflections, anti-aliasing. Renders PNGs. |
+| [`roguelike`](things/roguelike/) | A terminal dungeon crawler: procedural levels, fog of war, turn-based combat, leveling, save/load. Playable with `curses`. |
+
+More things get added over time — new projects, or expansions of existing
+ones.
