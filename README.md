@@ -19,6 +19,7 @@ else in the repo.
 | [`kvstore`](things/kvstore/) | A durable key-value store: fsync'd write-ahead log, crash-safe recovery (verified by literally corrupting the log file and checking recovery), atomic compaction. |
 | [`procmusic`](things/procmusic/) | Algorithmic music generation from scratch: raw waveform synthesis, a hand-rolled WAV writer, music theory (scales/chords), and a small composer. Produces actual playable songs. |
 | [`physics2d`](things/physics2d/) | A 2D rigid-body physics simulation (gravity, elastic collisions) rendered to an animated GIF via a from-scratch LZW encoder — including a real encoder/decoder sync bug found and fixed using Pillow as a decode oracle. |
+| [`huffman`](things/huffman/) | A general-purpose file compressor: from-scratch Huffman tree construction, a custom bit-packed file format, and a CLI. Real measured compression ratios, not just claimed ones. |
 
 More things get added over time — new projects, or expansions of existing
 ones.
