@@ -9,7 +9,8 @@ from .moves import (
     is_stalemate,
 )
 from .perft import perft
-from .search import find_best_move
+from .search import find_best_move, find_best_move_iterative
+from .zobrist import zobrist_hash
 
 __all__ = [
     "Board",
@@ -25,4 +26,6 @@ __all__ = [
     "is_stalemate",
     "perft",
     "find_best_move",
+    "find_best_move_iterative",
+    "zobrist_hash",
 ]

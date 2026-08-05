@@ -13,7 +13,7 @@ from .moves import (
     is_in_check,
     is_stalemate,
 )
-from .search import find_best_move
+from .search import find_best_move, find_best_move_iterative
 
 PIECE_GLYPHS = {
     "wP": "P", "wN": "N", "wB": "B", "wR": "R", "wQ": "Q", "wK": "K",
@@ -63,7 +63,7 @@ def game_status_message(board: Board) -> str | None:
     return None
 
 
-def play(fen: str, human_color: str, depth: int) -> None:
+def play(fen: str, human_color: str, depth: int, time_limit: float | None) -> None:
     board = Board.from_fen(fen)
 
     while True:
@@ -88,10 +88,16 @@ def play(fen: str, human_color: str, depth: int) -> None:
             board = apply_move(board, move)
         else:
             print("Engine is thinking...")
-            move, score, stats = find_best_move(board, depth)
-            if move is None:
-                return
-            print(f"Engine plays {move.to_uci()} (eval {score:+.0f}cp, {stats.nodes} nodes)")
+            if time_limit is not None:
+                move, score, stats, depth_reached = find_best_move_iterative(board, time_limit_seconds=time_limit)
+                if move is None:
+                    return
+                print(f"Engine plays {move.to_uci()} (eval {score:+.0f}cp, depth {depth_reached}, {stats.nodes} nodes)")
+            else:
+                move, score, stats = find_best_move(board, depth)
+                if move is None:
+                    return
+                print(f"Engine plays {move.to_uci()} (eval {score:+.0f}cp, {stats.nodes} nodes)")
             board = apply_move(board, move)
 
 
@@ -100,9 +106,13 @@ def main() -> int:
     parser.add_argument("--fen", default=STARTING_FEN)
     parser.add_argument("--color", choices=["w", "b"], default="w", help="which side you play")
     parser.add_argument("--depth", type=int, default=3, help="engine search depth (plies)")
+    parser.add_argument(
+        "--time", type=float, default=None,
+        help="if set, use iterative deepening with this many seconds per move instead of --depth",
+    )
     args = parser.parse_args()
 
-    play(args.fen, args.color, args.depth)
+    play(args.fen, args.color, args.depth, args.time)
     return 0
 
 
