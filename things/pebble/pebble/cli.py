@@ -3,10 +3,12 @@ from __future__ import annotations
 
 import sys
 
+from .compiler import compile_program
 from .errors import PebbleError
 from .interpreter import Interpreter
 from .lexer import Lexer
 from .parser import parse
+from .vm import VM
 
 
 def run_source(source: str, interpreter: Interpreter) -> None:
@@ -15,13 +17,17 @@ def run_source(source: str, interpreter: Interpreter) -> None:
     interpreter.interpret(statements)
 
 
-def run_file(path: str) -> int:
+def run_file(path: str, use_vm: bool = False) -> int:
     with open(path) as f:
         source = f.read()
 
-    interpreter = Interpreter()
     try:
-        run_source(source, interpreter)
+        tokens = Lexer(source).scan_tokens()
+        statements = parse(tokens)
+        if use_vm:
+            VM().run(compile_program(statements))
+        else:
+            Interpreter().interpret(statements)
     except PebbleError as e:
         print(f"pebble: {e.message}" + (f" [line {e.line}]" if e.line else ""), file=sys.stderr)
         return 1

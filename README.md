@@ -13,7 +13,7 @@ else in the repo.
 |---|---|
 | [`raytracer`](things/raytracer/) | A ray tracer written from scratch in Python: spheres, planes, diffuse/metal/glass materials, shadows, reflections, anti-aliasing. Renders PNGs. |
 | [`roguelike`](things/roguelike/) | A terminal dungeon crawler: procedural levels, fog of war, turn-based combat, A* monster chasing, leveling, save/load. Playable with `curses`. |
-| [`pebble`](things/pebble/) | A small scripting language, implemented from scratch: hand-written lexer, recursive-descent parser, tree-walking interpreter with closures. |
+| [`pebble`](things/pebble/) | A small scripting language, implemented from scratch: hand-written lexer, recursive-descent parser, tree-walking interpreter with closures, and a second bytecode-VM execution path — which, measured honestly, turned out *slower*, not faster (with a real, different advantage instead). |
 | [`chess`](things/chess/) | A chess engine: full legal move generation (verified against known perft values), alpha-beta search, playable from the terminal. |
 | [`regex`](things/regex/) | A regex engine built on Thompson NFA construction — no backtracking, so it's immune to catastrophic ReDoS blowup (verified against Python's `re`, which isn't). |
 | [`kvstore`](things/kvstore/) | A durable key-value store: fsync'd write-ahead log, crash-safe recovery (verified by literally corrupting the log file and checking recovery), atomic compaction. |
