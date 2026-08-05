@@ -21,6 +21,7 @@ else in the repo.
 | [`physics2d`](things/physics2d/) | A 2D rigid-body physics simulation (gravity, elastic collisions) rendered to an animated GIF via a from-scratch LZW encoder — including a real encoder/decoder sync bug found and fixed using Pillow as a decode oracle. |
 | [`huffman`](things/huffman/) | A general-purpose file compressor: from-scratch Huffman tree construction, a custom bit-packed file format, and a CLI. Real measured compression ratios, not just claimed ones. |
 | [`sudoku`](things/sudoku/) | A constraint-propagation solver and uniqueness-checked puzzle generator — including a real "locally fine isn't the same as solvable" bug found when a hang turned an obviously-correct-looking unsolvability test into a half-million-node search. |
+| [`difftool`](things/difftool/) | A line-based diff/patch tool on Myers' O(ND) shortest-edit-script algorithm, with a validating patch-apply and a corrected (initially wrong!) minimality cross-check against Python's `difflib`. |
 
 More things get added over time — new projects, or expansions of existing
 ones.
