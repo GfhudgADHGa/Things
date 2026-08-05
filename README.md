@@ -22,6 +22,7 @@ else in the repo.
 | [`huffman`](things/huffman/) | A general-purpose file compressor: from-scratch Huffman tree construction, a custom bit-packed file format, and a CLI. Real measured compression ratios, not just claimed ones. |
 | [`sudoku`](things/sudoku/) | A constraint-propagation solver and uniqueness-checked puzzle generator — including a real "locally fine isn't the same as solvable" bug found when a hang turned an obviously-correct-looking unsolvability test into a half-million-node search. |
 | [`difftool`](things/difftool/) | A line-based diff/patch tool on Myers' O(ND) shortest-edit-script algorithm, with a validating patch-apply and a corrected (initially wrong!) minimality cross-check against Python's `difflib`. |
+| [`neuralnet`](things/neuralnet/) | A feedforward neural network from scratch (dense layers, backprop, SGD) — proven correct via numerical gradient checking (~2.7e-9 relative error) rather than just "the loss went down", plus an honest negative result: plain SGD doesn't converge on a spiral-classification task. |
 
 More things get added over time — new projects, or expansions of existing
 ones.
