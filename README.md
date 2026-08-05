@@ -17,6 +17,7 @@ else in the repo.
 | [`chess`](things/chess/) | A chess engine: full legal move generation (verified against known perft values), alpha-beta search, playable from the terminal. |
 | [`regex`](things/regex/) | A regex engine built on Thompson NFA construction — no backtracking, so it's immune to catastrophic ReDoS blowup (verified against Python's `re`, which isn't). |
 | [`kvstore`](things/kvstore/) | A durable key-value store: fsync'd write-ahead log, crash-safe recovery (verified by literally corrupting the log file and checking recovery), atomic compaction. |
+| [`procmusic`](things/procmusic/) | Algorithmic music generation from scratch: raw waveform synthesis, a hand-rolled WAV writer, music theory (scales/chords), and a small composer. Produces actual playable songs. |
 
 More things get added over time — new projects, or expansions of existing
 ones.
