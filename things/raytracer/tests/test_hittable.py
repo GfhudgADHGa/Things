@@ -78,3 +78,16 @@ def test_checker_plane_alternates_material():
     )
     assert plane._material_at(Vec3(0.5, 0, 0.5)) is mat_a
     assert plane._material_at(Vec3(1.5, 0, 0.5)) is mat_b
+
+
+def test_sphere_bounding_box():
+    sphere = Sphere(Vec3(1, 2, 3), 2.0, make_material())
+    box = sphere.bounding_box()
+    assert box is not None
+    assert box.minimum == Vec3(-1, 0, 1)
+    assert box.maximum == Vec3(3, 4, 5)
+
+
+def test_plane_is_unbounded():
+    plane = Plane(Vec3(0, 0, 0), Vec3(0, 1, 0), make_material())
+    assert plane.bounding_box() is None

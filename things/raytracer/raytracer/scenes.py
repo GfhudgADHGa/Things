@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import random
 
+from .bvh import BVHNode
 from .camera import Camera
 from .hittable import HittableList, Plane, Sphere
 from .materials import Dielectric, Lambertian, Metal
@@ -51,6 +52,7 @@ def random_field(aspect_ratio: float = 3 / 2, seed: int = 42, n: int = 5):
     """
     rng = random.Random(seed)
     world = HittableList()
+    spheres = []
 
     floor = Lambertian(Vec3(0.5, 0.5, 0.5))
     world.add(Plane(Vec3(0, 0, 0), Vec3(0, 1, 0), floor))
@@ -84,11 +86,15 @@ def random_field(aspect_ratio: float = 3 / 2, seed: int = 42, n: int = 5):
             else:
                 material = Dielectric(1.5)
 
-            world.add(Sphere(center, 0.2, material))
+            spheres.append(Sphere(center, 0.2, material))
 
-    world.add(Sphere(Vec3(0, 1, 0), 1.0, Dielectric(1.5)))
-    world.add(Sphere(Vec3(-4, 1, 0), 1.0, Lambertian(Vec3(0.4, 0.2, 0.1))))
-    world.add(Sphere(Vec3(4, 1, 0), 1.0, Metal(Vec3(0.7, 0.6, 0.5), 0.0)))
+    spheres.append(Sphere(Vec3(0, 1, 0), 1.0, Dielectric(1.5)))
+    spheres.append(Sphere(Vec3(-4, 1, 0), 1.0, Lambertian(Vec3(0.4, 0.2, 0.1))))
+    spheres.append(Sphere(Vec3(4, 1, 0), 1.0, Metal(Vec3(0.7, 0.6, 0.5), 0.0)))
+
+    # spheres go behind a BVH; the ground plane stays outside it (unbounded,
+    # so it can't be part of the tree) and is tested directly every ray
+    world.add(BVHNode(spheres, rng))
 
     look_from = Vec3(13, 2, 3)
     look_at = Vec3(0, 0, 0)

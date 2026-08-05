@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import List, Optional
 
+from .aabb import AABB
 from .ray import Ray
 from .vec3 import Vec3
 
@@ -29,6 +30,10 @@ class Hittable(ABC):
     @abstractmethod
     def hit(self, ray: Ray, t_min: float, t_max: float) -> Optional[HitRecord]:
         raise NotImplementedError
+
+    def bounding_box(self) -> Optional[AABB]:
+        """Returns an AABB enclosing this object, or None if unbounded (e.g. a plane)."""
+        return None
 
 
 class Sphere(Hittable):
@@ -57,6 +62,10 @@ class Sphere(Hittable):
         outward_normal = (point - self.center) / self.radius
         front_face, normal = HitRecord.face_normal(ray, outward_normal)
         return HitRecord(point, normal, root, front_face, self.material)
+
+    def bounding_box(self) -> Optional[AABB]:
+        r = Vec3(self.radius, self.radius, self.radius)
+        return AABB(self.center - r, self.center + r)
 
 
 class Plane(Hittable):
