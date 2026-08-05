@@ -11,8 +11,9 @@ degrees) does most of the work.
 from __future__ import annotations
 
 import random
-from typing import List, Sequence
+from typing import List, Optional, Sequence
 
+from .drums import render_drum_track
 from .synth import mix, render_note, silence
 from .theory import SCALES, chord_midi_notes, midi_to_freq, note_name_to_midi, scale_midi_notes
 
@@ -28,6 +29,20 @@ MAJOR_SCALE_CHORD_QUALITIES = {
 MELODY_STEP_CHOICES = [-2, -1, -1, 0, 1, 1, 2]
 
 
+def _default_drum_patterns(beats_per_chord: int) -> tuple:
+    """A plain pop/rock beat, generated to fit any beats_per_chord: kick
+    on beat 1 (and beat 3, if there are at least 3 beats), snare on the
+    other even-numbered beats, hi-hat on every 8th note."""
+    steps = beats_per_chord * 4  # 16th notes per chord
+    kick_steps = {0}
+    if beats_per_chord >= 3:
+        kick_steps.add(2 * 4)
+    snare_steps = {b * 4 for b in range(1, beats_per_chord, 2)}
+    hihat_steps = set(range(0, steps, 2))
+    pattern = lambda hit_steps: "".join("x" if i in hit_steps else "." for i in range(steps))  # noqa: E731
+    return pattern(kick_steps), pattern(snare_steps), pattern(hihat_steps)
+
+
 def compose(
     key: str = "C4",
     scale_name: str = "major",
@@ -36,6 +51,8 @@ def compose(
     beats_per_chord: int = 4,
     seed: int = 42,
     sample_rate: int = 44100,
+    drums: bool = True,
+    drum_pattern: Optional[tuple] = None,
 ) -> List[float]:
     if scale_name not in SCALES:
         raise ValueError(f"unknown scale: {scale_name!r}")
@@ -48,15 +65,26 @@ def compose(
     beat = 60.0 / tempo_bpm
     chord_duration = beats_per_chord * beat
     eighth = beat / 2
+    sixteenth = beat / 4
     notes_per_chord = max(1, round(chord_duration / eighth))
+
+    if drums:
+        kick_pattern, snare_pattern, hihat_pattern = drum_pattern or _default_drum_patterns(beats_per_chord)
+        expected_steps = beats_per_chord * 4
+        if any(len(p) != expected_steps for p in (kick_pattern, snare_pattern, hihat_pattern)):
+            raise ValueError(
+                f"drum_pattern strings must each have {expected_steps} steps "
+                f"(beats_per_chord * 4) to stay aligned with the chord progression"
+            )
 
     bass_track: List[float] = []
     chord_track: List[float] = []
     melody_track: List[float] = []
+    drum_track: List[float] = []
 
     melody_idx = rng.randrange(len(melody_range))
 
-    for roman in progression:
+    for chord_index, roman in enumerate(progression):
         if roman not in ROMAN_TO_DEGREE:
             raise ValueError(f"unknown roman numeral: {roman!r}")
         degree = ROMAN_TO_DEGREE[roman] % len(intervals)
@@ -86,4 +114,14 @@ def compose(
             )
             melody_track += silence(eighth * 0.1, sample_rate)
 
-    return mix(bass_track, chord_track, melody_track)
+        if drums:
+            drum_track += render_drum_track(
+                kick_pattern, snare_pattern, hihat_pattern,
+                step_duration=sixteenth, sample_rate=sample_rate,
+                seed=seed + chord_index,
+            )
+
+    tracks = [bass_track, chord_track, melody_track]
+    if drums:
+        tracks.append(drum_track)
+    return mix(*tracks)

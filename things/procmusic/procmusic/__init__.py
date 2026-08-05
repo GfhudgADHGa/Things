@@ -1,4 +1,5 @@
 from .composer import compose
+from .drums import hihat, kick, render_drum_track, snare
 from .synth import (
     apply_adsr,
     mix,
@@ -23,6 +24,7 @@ from .wav import read_wav, write_wav
 
 __all__ = [
     "compose",
+    "hihat", "kick", "render_drum_track", "snare",
     "apply_adsr",
     "mix",
     "render_note",

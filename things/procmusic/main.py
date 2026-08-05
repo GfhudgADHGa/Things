@@ -19,16 +19,19 @@ def main() -> int:
     parser.add_argument("--preset", choices=sorted(PRESETS), default="calm")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--repeats", type=int, default=2, help="how many times to loop the progression")
+    parser.add_argument("--no-drums", action="store_true", help="disable the drum track")
     parser.add_argument("--output", default="song.wav")
     args = parser.parse_args()
 
     settings = dict(PRESETS[args.preset])
     settings["progression"] = tuple(settings["progression"]) * args.repeats
     settings["seed"] = args.seed
+    settings["drums"] = not args.no_drums
 
     samples = compose(**settings)
     write_wav(samples, args.output)
-    print(f"Wrote {args.output}: {len(samples) / 44100:.1f}s, preset={args.preset!r}, seed={args.seed}")
+    drum_note = "" if args.no_drums else " + drums"
+    print(f"Wrote {args.output}: {len(samples) / 44100:.1f}s, preset={args.preset!r}, seed={args.seed}{drum_note}")
     return 0
 
 
