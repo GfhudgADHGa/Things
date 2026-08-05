@@ -7,33 +7,21 @@ from typing import Optional
 from .dungeon import Dungeon
 from .geometry import Point
 from .entities import Monster, Player
+from .pathfinding import find_path
 
 
 def step_towards(dungeon: Dungeon, start: Point, target: Point, blocked: set) -> Point:
-    """Returns the best single-tile move from start towards target.
+    """Returns the next single-tile move from start toward target, routing
+    around walls via A* rather than just greedily reducing straight-line
+    distance (which gets a monster stuck pressed against a wall whenever
+    the direct line to the target isn't actually walkable).
 
-    Falls back to staying in place if every direction is blocked.
+    Falls back to staying in place if no path exists at all.
     """
-    best_move = start
-    best_distance = start.distance_squared(target)
-
-    candidates = [
-        Point(start.x + dx, start.y + dy)
-        for dx in (-1, 0, 1)
-        for dy in (-1, 0, 1)
-        if not (dx == 0 and dy == 0)
-    ]
-    for candidate in candidates:
-        if not dungeon.is_walkable(candidate):
-            continue
-        if candidate in blocked:
-            continue
-        distance = candidate.distance_squared(target)
-        if distance < best_distance:
-            best_distance = distance
-            best_move = candidate
-
-    return best_move
+    path = find_path(dungeon, start, target, blocked)
+    if path is None or len(path) < 2:
+        return start
+    return path[1]
 
 
 def take_monster_turn(

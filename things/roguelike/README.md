@@ -44,6 +44,7 @@ roguelike/
   items.py          potions, scrolls, weapons, armor
   combat.py        attack resolution (damage = attack - defense ± variance, min 1)
   ai.py              monster chase/wander behavior
+  pathfinding.py      A* search monsters use to chase around obstacles
   game.py           the turn loop: ties everything together, no I/O
   save.py            JSON (de)serialization of a Game
   ui_curses.py      curses rendering + input loop
@@ -65,8 +66,27 @@ variance`, floored at 1, so a fight is never a true stalemate.
 
 **Monsters** are idle until the player enters their field of view, at which
 point they become permanently aggro'd and path toward the player one tile at
-a time (8-directional greedy pathing — not A*, but effective on these small,
-open, single-corridor-dominant levels).
+a time via A* (`pathfinding.py`), 8-directional with a Chebyshev-distance
+heuristic (admissible and consistent, since every step — including
+diagonals — costs the same 1 tile here). This replaced an earlier
+straight-line-distance-greedy approach that had an obvious failure mode:
+a monster on the wrong side of any wall between it and the player would
+walk straight into that wall and get stuck there forever, since "reduce
+distance-to-target" doesn't know the direct line isn't walkable. A*
+actually routes around obstacles instead of just aiming at the target
+through them — see `tests/test_pathfinding.py::
+test_path_routes_around_a_wall_with_a_gap` for exactly that scenario,
+and `test_step_towards_routes_around_a_wall_instead_of_getting_stuck` for
+the same fix exercised through the AI layer.
+
+One deliberate design choice worth calling out: pathfinding always treats
+the *goal* square as walkable even if it's in the caller's `blocked` set.
+The player's own square is always in `blocked` (nothing should ever step
+onto it — that's a bump-attack, handled separately), but a monster still
+needs to find a route *toward* that square from far away. Excluding the
+goal from the blocked check is what makes long-range chasing possible at
+all; without it, `find_path` would report "unreachable" the instant the
+target's own tile is occupied, which is always.
 
 **Progression**: monster stats scale up with dungeon depth (deeper rats hit
 harder than shallow ones), and the player levels up on enough XP, gaining
@@ -79,17 +99,19 @@ pip install -r requirements.txt
 python3 -m pytest
 ```
 
-62 tests cover dungeon generation (determinism, connectivity via flood
+75 tests cover dungeon generation (determinism, connectivity via flood
 fill, stairs placement), FOV (line tracing, radius limits, wall occlusion),
-combat math, entity leveling, item templates, monster AI (wander vs. chase
-vs. attack), the full game turn loop (movement, combat, pickup, equip,
-descending, win/lose conditions), and save/load round-tripping. The curses
-UI itself isn't unit tested (no TTY in CI) — it was verified manually by
-driving it inside a `tmux` session.
+A* pathfinding (shortest-path length in open space, wall/blocked-cell
+avoidance, the goal-is-exempt-from-blocked design choice, unreachable
+targets correctly return no path, determinism), combat math, entity
+leveling, item templates, monster AI (wander vs. chase vs. attack), the
+full game turn loop (movement, combat, pickup, equip, descending, win/lose
+conditions), and save/load round-tripping. The curses UI itself isn't
+unit tested (no TTY in CI) — it was verified manually by driving it
+inside a `tmux` session.
 
 ## Possible expansions
 
-- A* pathing for smarter monster chasing around obstacles
 - Ranged weapons / thrown items
 - Traps, locked doors, keys
 - A proper "return to town" loop with shops
