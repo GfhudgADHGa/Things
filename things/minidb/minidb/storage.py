@@ -13,6 +13,7 @@ class Table:
     name: str
     columns: list  # list[ColumnDef]
     rows: list = field(default_factory=list)  # list[list[object]]
+    indexes: dict = field(default_factory=dict)  # column name -> BTree
 
     def column_names(self) -> list:
         return [c.name for c in self.columns]

@@ -8,9 +8,9 @@ from __future__ import annotations
 from typing import Optional
 
 from .ast_nodes import (
-    BinaryOp, ColumnDef, ColumnRef, CreateTable, Delete, FunctionCall,
-    InExpr, Insert, IsNull, JoinClause, Literal, OrderItem, Select,
-    SelectItem, Star, UnaryOp, Update,
+    BinaryOp, ColumnDef, ColumnRef, CreateIndex, CreateTable, Delete,
+    FunctionCall, InExpr, Insert, IsNull, JoinClause, Literal, OrderItem,
+    Select, SelectItem, Star, UnaryOp, Update,
 )
 from .errors import ParseError
 from .lexer import Token, TokType, tokenize
@@ -90,6 +90,9 @@ class Parser:
         if self._check_keyword("SELECT"):
             return self._parse_select()
         if self._check_keyword("CREATE"):
+            next_tok = self._peek_ahead(1)
+            if next_tok is not None and next_tok.type == TokType.KEYWORD and next_tok.value == "INDEX":
+                return self._parse_create_index()
             return self._parse_create_table()
         if self._check_keyword("INSERT"):
             return self._parse_insert()
@@ -123,6 +126,17 @@ class Parser:
             break
         self._expect_op(")")
         return CreateTable(name, columns)
+
+    def _parse_create_index(self) -> CreateIndex:
+        self._expect_keyword("CREATE")
+        self._expect_keyword("INDEX")
+        name = self._expect_ident()
+        self._expect_keyword("ON")
+        table = self._expect_ident()
+        self._expect_op("(")
+        column = self._expect_ident()
+        self._expect_op(")")
+        return CreateIndex(name, table, column)
 
     # ---- INSERT ----
 

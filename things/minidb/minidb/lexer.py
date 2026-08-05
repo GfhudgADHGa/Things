@@ -20,7 +20,7 @@ KEYWORDS = {
     "SELECT", "FROM", "WHERE", "INSERT", "INTO", "VALUES", "CREATE", "TABLE",
     "PRIMARY", "KEY", "UPDATE", "SET", "DELETE", "AND", "OR", "NOT", "NULL",
     "ORDER", "BY", "GROUP", "HAVING", "LIMIT", "ASC", "DESC", "JOIN", "ON",
-    "INNER", "LEFT", "AS", "DISTINCT", "LIKE", "IN", "IS",
+    "INNER", "LEFT", "AS", "DISTINCT", "LIKE", "IN", "IS", "INDEX",
     "INTEGER", "REAL", "TEXT",
 }
 

@@ -74,6 +74,13 @@ class CreateTable:
 
 
 @dataclass
+class CreateIndex:
+    name: str
+    table: str
+    column: str
+
+
+@dataclass
 class Insert:
     table: str
     columns: Optional[list]
@@ -126,4 +133,4 @@ class Delete:
     where: Optional["Expr"]
 
 
-Statement = Union[CreateTable, Insert, Select, Update, Delete]
+Statement = Union[CreateTable, CreateIndex, Insert, Select, Update, Delete]

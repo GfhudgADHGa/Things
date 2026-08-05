@@ -61,6 +61,41 @@ query mixing negative integers with division — a case none of the
 hand-written executor tests happened to include until the oracle forced
 the question.
 
+## `CREATE INDEX`: a real B-tree, and a measured 130x speedup
+
+`CREATE INDEX idx ON t(col)` builds a textbook CLRS-style B-tree
+(`btree.py`) over that column. When a query's `WHERE` clause is exactly
+a single comparison (`=`, `<`, `<=`, `>`, `>=`) between an indexed column
+and a literal — and there's no `JOIN` — the executor looks candidate rows
+up in the B-tree instead of scanning the whole table. On a 20,000-row
+table, `SELECT id FROM t WHERE amount = 42` measured **~130x faster**
+with the index than without (`test_index_gives_a_measured_speedup_on_a_large_table`,
+which prints the actual numbers on each run rather than asserting a
+specific ratio, since exact timings vary by machine — the assertion is
+just "index beats scan," which it does comfortably).
+
+Correctness is enforced structurally, not just tested for: the index
+path is only ever a *candidate generator* — `execute_select` always
+re-evaluates the complete original `WHERE` expression against every
+row the index (or the scan) produces before including it, unconditionally.
+That means an index bug could at worst make a query slower (by
+returning a candidate set that's too large, immediately filtered back
+down to correct), never wrong — and `test_indexed_executor.py` checks
+the actual claim that matters anyway: the exact same query against the
+exact same data returns identical results with and without an index,
+across 20 randomized tables and 8 query shapes, plus after `INSERT`,
+`UPDATE`, and `DELETE` on an indexed table.
+
+`UPDATE`/`DELETE` don't maintain the B-tree incrementally — they rebuild
+every index on the affected table from scratch afterward. `INSERT` (pure
+append) does update indexes incrementally, since appending never
+invalidates another row's stored position the way deleting does.
+Rebuilding is O(n) instead of O(log n), a deliberate simplicity-over-
+performance tradeoff (the same kind `kvstore`'s own `range_query` README
+section is upfront about) — it means the B-tree only ever needs
+`insert()`, never deletion, which is by far the fussier half of a real
+B-tree implementation to get right.
+
 ## Architecture
 
 ```
@@ -71,10 +106,14 @@ minidb/
   parser.py         recursive-descent parser; expressions use precedence
                       climbing (OR < AND < NOT < comparison < + - < * / %)
   storage.py         Database/Table: typed columns, INTEGER/REAL/TEXT
-                       coercion on insert and update
+                       coercion on insert and update; per-column B-tree
+                       indexes
+  btree.py            BTree: a CLRS-style B-tree (insert + range search
+                        only -- see below for why no deletion is needed)
   executor.py         WHERE/JOIN/GROUP BY/HAVING/ORDER BY/LIMIT/DISTINCT,
                         NULL-aware three-valued AND/OR/NOT, SQLite-matching
-                        division/modulo and LIKE semantics
+                        division/modulo and LIKE semantics, and the
+                        index-assisted WHERE evaluation described above
 ```
 
 `RowContext` and `GroupContext` (in `executor.py`) are the two "shapes" an
@@ -91,6 +130,8 @@ it's looking at; `eval_expr` dispatches through `.get_column()` /
 ## What's supported
 
 - `CREATE TABLE t (col TYPE [PRIMARY KEY], ...)` — `INTEGER`/`REAL`/`TEXT`
+- `CREATE INDEX idx ON t(col)` — see above; speeds up simple equality/range
+  `WHERE` predicates on that column
 - `INSERT INTO t [(cols...)] VALUES (...), (...)`
 - `SELECT [DISTINCT] items FROM t [alias] [JOIN t2 [alias] ON cond]...
   [WHERE cond] [GROUP BY cols] [HAVING cond] [ORDER BY cols [ASC|DESC]]
@@ -107,8 +148,10 @@ it's looking at; `eval_expr` dispatches through `.get_column()` /
 
 **Not supported** (out of scope for a small oracle-testable engine, not
 bugs): subqueries, `LEFT`/`OUTER`/`CROSS JOIN` (`INNER JOIN`/`JOIN` only),
-indexes, transactions, persistence to disk (everything lives in memory
-for the lifetime of the `Database` object), `ALTER TABLE`.
+index use across a `JOIN` or for compound `WHERE` conditions (only a
+single simple comparison on an indexed column, see above), transactions,
+persistence to disk (everything lives in memory for the lifetime of the
+`Database` object), `ALTER TABLE`/`DROP INDEX`.
 
 ## Usage
 
@@ -138,22 +181,27 @@ pip install -r requirements.txt
 python3 -m pytest
 ```
 
-318 tests: the lexer and parser (tokenization edge cases, operator
-precedence, every statement shape), the executor against hand-computed
-expected values (three-valued `NULL` logic, `JOIN`, `GROUP BY`/`HAVING`,
-`UPDATE` swap semantics, integer truncating division), and
-`test_oracle.py` — real cross-checks against `sqlite3` across `WHERE`,
-`ORDER BY`/`LIMIT`, `JOIN`, `GROUP BY`/aggregates, and division/modulo,
-plus 200 randomized-fuzz trials (random small integer tables, random
-`WHERE` clauses) compared row-for-row against `sqlite3`, the same
-"don't just hand-pick cases you already know work" idea as `difftool`'s
-fuzz test against `difflib`.
+558 tests: the lexer and parser (tokenization edge cases, operator
+precedence, every statement shape including `CREATE INDEX`), the
+executor against hand-computed expected values (three-valued `NULL`
+logic, `JOIN`, `GROUP BY`/`HAVING`, `UPDATE` swap semantics, integer
+truncating division), `test_oracle.py` — real cross-checks against
+`sqlite3` across `WHERE`, `ORDER BY`/`LIMIT`, `JOIN`, `GROUP BY`/
+aggregates, and division/modulo, plus 200 randomized-fuzz trials (random
+small integer tables, random `WHERE` clauses) compared row-for-row
+against `sqlite3` — `test_btree.py` (the B-tree itself against a
+brute-force baseline: equality search, range search, and internal
+sortedness, across randomized trees), and `test_indexed_executor.py`
+(indexed vs. unindexed results compared across 20 randomized tables and
+8 query shapes, including after `INSERT`/`UPDATE`/`DELETE`, plus the
+measured-speedup benchmark).
 
 ## Possible expansions
 
 - Subquery support (`WHERE id IN (SELECT ...)`, correlated subqueries)
 - `LEFT JOIN` (parser already rejects it explicitly rather than silently
   mis-executing it as an `INNER JOIN`)
-- An actual index (the executor does a full table scan for every query;
-  there's no B-tree here the way there is in `kvstore`)
+- Index use across compound `WHERE` conditions (`WHERE a = 1 AND b = 2`
+  currently falls back to a full scan even if `a` is indexed) and across
+  `JOIN`s
 - Disk persistence — `Database` is pure in-memory today

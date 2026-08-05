@@ -20,10 +20,11 @@ from dataclasses import dataclass
 from typing import Optional
 
 from .ast_nodes import (
-    BinaryOp, ColumnRef, CreateTable, Delete, FunctionCall, InExpr, Insert,
-    IsNull, Literal, OrderItem, Select, Star, Update, UnaryOp,
+    BinaryOp, ColumnRef, CreateIndex, CreateTable, Delete, FunctionCall,
+    InExpr, Insert, IsNull, Literal, OrderItem, Select, Star, Update, UnaryOp,
 )
-from .errors import ExecutionError
+from .btree import BTree
+from .errors import ExecutionError, SchemaError
 from .storage import Database, Table
 
 
@@ -96,15 +97,16 @@ class GroupContext:
         return _eval_aggregate(func, self.rows)
 
 
-def _scan_table(table: Table, alias: Optional[str]) -> list:
+def _row_context(table: Table, alias: Optional[str], row: list) -> RowContext:
+    ctx = RowContext()
     name = alias or table.name
-    contexts = []
-    for row in table.rows:
-        ctx = RowContext()
-        for col, value in zip(table.columns, row):
-            ctx.add(name, col.name, value)
-        contexts.append(ctx)
-    return contexts
+    for col, value in zip(table.columns, row):
+        ctx.add(name, col.name, value)
+    return ctx
+
+
+def _scan_table(table: Table, alias: Optional[str]) -> list:
+    return [_row_context(table, alias, row) for row in table.rows]
 
 
 def _join(left_rows: list, table: Table, alias: Optional[str], on_expr) -> list:
@@ -337,6 +339,74 @@ def _expr_header(expr) -> str:
     return "expr"
 
 
+# ---- index-assisted WHERE evaluation ----
+#
+# An index is purely a performance optimization: it never changes what a
+# query returns, only how fast the matching rows are found. So the
+# pattern here is deliberately conservative -- _extract_index_predicate
+# only recognizes the simplest possible shape (a single comparison
+# between an indexed column and a literal, no JOIN involved), and even
+# when it applies, execute_select still re-evaluates the *entire* WHERE
+# expression against every index-selected row before including it (see
+# the unconditional filter in execute_select). That safety net is what
+# makes "the index returned the wrong candidate set" structurally
+# impossible to turn into a wrong query result -- at worst, an index bug
+# would only make things slower, never wrong. test_indexed_executor.py
+# checks the actual claim that matters: results are identical with and
+# without an index on the same query.
+
+_FLIP_OP = {"=": "=", "!=": "!=", "<>": "<>", "<": ">", "<=": ">=", ">": "<", ">=": "<="}
+_INDEXABLE_OPS = {"=", "<", "<=", ">", ">="}
+
+
+def _extract_index_predicate(where_expr):
+    """If where_expr is exactly `column OP literal` or `literal OP column`
+    for an indexable comparison operator, returns (column_name, op,
+    value) with the operator flipped as needed so the column is always
+    on the left conceptually. Returns None for anything more complex
+    (AND/OR, LIKE, IN, expressions on either side, ...) -- those all fall
+    back to a full scan."""
+    if not isinstance(where_expr, BinaryOp) or where_expr.op not in _INDEXABLE_OPS:
+        return None
+    left, right = where_expr.left, where_expr.right
+    if isinstance(left, ColumnRef) and isinstance(right, Literal) and right.value is not None:
+        return left.name, where_expr.op, right.value
+    if isinstance(right, ColumnRef) and isinstance(left, Literal) and left.value is not None:
+        return right.name, _FLIP_OP[where_expr.op], left.value
+    return None
+
+
+def _index_lookup(index: BTree, op: str, value) -> list:
+    if op == "=":
+        return index.search_equal(value)
+    if op == "<":
+        return [rid for v, rid in index.range_search(None, value) if v < value]
+    if op == "<=":
+        return [rid for v, rid in index.range_search(None, value)]
+    if op == ">":
+        return [rid for v, rid in index.range_search(value, None) if v > value]
+    if op == ">=":
+        return [rid for v, rid in index.range_search(value, None)]
+    raise ExecutionError(f"unsupported index operator: {op}")
+
+
+def _try_index_scan(stmt: Select, table: Table) -> Optional[list]:
+    """Returns row contexts selected via an index, or None if no index
+    applies to this query (single table, no JOIN, a plain indexable
+    WHERE predicate on an indexed column)."""
+    if stmt.joins or stmt.where is None:
+        return None
+    predicate = _extract_index_predicate(stmt.where)
+    if predicate is None:
+        return None
+    column, op, value = predicate
+    index = table.indexes.get(column)
+    if index is None:
+        return None
+    positions = _index_lookup(index, op, value)
+    return [_row_context(table, stmt.from_alias, table.rows[pos]) for pos in positions]
+
+
 def _expand_select_items(stmt: Select, tables_info: list) -> list:
     expanded = []
     for item in stmt.columns:
@@ -364,6 +434,37 @@ def execute_create_table(db: Database, stmt: CreateTable) -> None:
     db.create_table(stmt.name, stmt.columns)
 
 
+def _rebuild_indexes(table: Table) -> None:
+    """Rebuilds every index on `table` from scratch against its current
+    rows. Simple and always correct, at the cost of being O(n) on every
+    UPDATE/DELETE rather than maintaining the B-tree incrementally --
+    deliberate, since row positions shift on delete (invalidating stored
+    row_ids) and UPDATE can change an indexed column's value; getting
+    incremental maintenance right for both would mean implementing
+    B-tree deletion, which the index doesn't otherwise need at all."""
+    for column_name in list(table.indexes.keys()):
+        col_idx = table.column_index(column_name)
+        new_index = BTree()
+        for position, row in enumerate(table.rows):
+            value = row[col_idx]
+            if value is not None:
+                new_index.insert(value, position)
+        table.indexes[column_name] = new_index
+
+
+def execute_create_index(db: Database, stmt: CreateIndex) -> None:
+    table = db.get_table(stmt.table)
+    col_idx = table.column_index(stmt.column)  # validates the column exists
+    if stmt.column in table.indexes:
+        raise SchemaError(f"an index already exists on {stmt.table}.{stmt.column}")
+    index = BTree()
+    for position, row in enumerate(table.rows):
+        value = row[col_idx]
+        if value is not None:  # NULLs aren't indexed; lookups on NULL always fall back to a scan
+            index.insert(value, position)
+    table.indexes[stmt.column] = index
+
+
 def execute_insert(db: Database, stmt: Insert) -> int:
     table = db.get_table(stmt.table)
     col_names = stmt.columns if stmt.columns is not None else table.column_names()
@@ -377,6 +478,11 @@ def execute_insert(db: Database, stmt: Insert) -> int:
         for i, col in enumerate(table.columns):
             row.append(table.coerce(i, values_by_name[col.name]) if col.name in values_by_name else None)
         table.rows.append(row)
+        position = len(table.rows) - 1
+        for column_name, index in table.indexes.items():
+            value = row[table.column_index(column_name)]
+            if value is not None:
+                index.insert(value, position)
         count += 1
     return count
 
@@ -389,7 +495,9 @@ def execute_select(db: Database, stmt: Select) -> QueryResult:
     else:
         table = db.get_table(stmt.from_table)
         tables_info = [(table, stmt.from_alias or stmt.from_table)]
-        rows = _scan_table(table, stmt.from_alias)
+        rows = _try_index_scan(stmt, table)
+        if rows is None:
+            rows = _scan_table(table, stmt.from_alias)
         for join in stmt.joins:
             jt = db.get_table(join.table)
             tables_info.append((jt, join.alias or join.table))
@@ -447,6 +555,8 @@ def execute_update(db: Database, stmt: Update) -> int:
             idx = table.column_index(name)
             row[idx] = table.coerce(idx, eval_expr(expr, ctx))
         count += 1
+    if count and table.indexes:
+        _rebuild_indexes(table)
     return count
 
 
@@ -463,12 +573,16 @@ def execute_delete(db: Database, stmt: Delete) -> int:
         else:
             deleted += 1
     table.rows = keep
+    if deleted and table.indexes:
+        _rebuild_indexes(table)
     return deleted
 
 
 def execute(db: Database, stmt):
     if isinstance(stmt, CreateTable):
         return execute_create_table(db, stmt)
+    if isinstance(stmt, CreateIndex):
+        return execute_create_index(db, stmt)
     if isinstance(stmt, Insert):
         return execute_insert(db, stmt)
     if isinstance(stmt, Select):

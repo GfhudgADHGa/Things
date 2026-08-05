@@ -1,8 +1,8 @@
 import pytest
 
 from minidb.ast_nodes import (
-    BinaryOp, ColumnRef, CreateTable, Delete, FunctionCall, InExpr, Insert,
-    IsNull, Literal, Select, Star, UnaryOp, Update,
+    BinaryOp, ColumnRef, CreateIndex, CreateTable, Delete, FunctionCall,
+    InExpr, Insert, IsNull, Literal, Select, Star, UnaryOp, Update,
 )
 from minidb.errors import ParseError
 from minidb.parser import parse, parse_many
@@ -15,6 +15,14 @@ def test_parse_create_table():
     assert [c.name for c in stmt.columns] == ["id", "name"]
     assert stmt.columns[0].primary_key is True
     assert stmt.columns[1].primary_key is False
+
+
+def test_parse_create_index():
+    stmt = parse("CREATE INDEX idx_age ON users(age)")
+    assert isinstance(stmt, CreateIndex)
+    assert stmt.name == "idx_age"
+    assert stmt.table == "users"
+    assert stmt.column == "age"
 
 
 def test_parse_insert_with_explicit_columns():
