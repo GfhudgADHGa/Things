@@ -23,6 +23,12 @@ class Dense:
         ]
         self.biases: List[float] = [0.0] * out_dim
 
+        # momentum velocity, same shape as weights/biases, persists across
+        # apply_gradients calls; stays all-zero (and thus a no-op) unless
+        # a nonzero momentum coefficient is actually passed in.
+        self._velocity_weights: List[List[float]] = [[0.0] * out_dim for _ in range(in_dim)]
+        self._velocity_biases: List[float] = [0.0] * out_dim
+
         self._last_input: Optional[List[float]] = None
         self._last_output: Optional[List[float]] = None
 
@@ -58,11 +64,24 @@ class Dense:
 
         return grad_input, grad_weights, grad_biases
 
-    def apply_gradients(self, grad_weights: List[List[float]], grad_biases: List[float], learning_rate: float) -> None:
+    def apply_gradients(
+        self,
+        grad_weights: List[List[float]],
+        grad_biases: List[float],
+        learning_rate: float,
+        momentum: float = 0.0,
+    ) -> None:
+        """Classic momentum SGD: v = momentum*v - lr*grad; w += v. With
+        momentum=0.0 (the default) v is recomputed fresh from -lr*grad
+        every call, which is exactly plain SGD -- so this is a strict
+        superset of the old behavior, not a different code path."""
         for i in range(self.in_dim):
             row = self.weights[i]
             grad_row = grad_weights[i]
+            v_row = self._velocity_weights[i]
             for j in range(self.out_dim):
-                row[j] -= learning_rate * grad_row[j]
+                v_row[j] = momentum * v_row[j] - learning_rate * grad_row[j]
+                row[j] += v_row[j]
         for j in range(self.out_dim):
-            self.biases[j] -= learning_rate * grad_biases[j]
+            self._velocity_biases[j] = momentum * self._velocity_biases[j] - learning_rate * grad_biases[j]
+            self.biases[j] += self._velocity_biases[j]

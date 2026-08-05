@@ -68,21 +68,38 @@ checking possible at all: you need to compute a gradient, then perturb
 that exact same weight and remeasure, without the act of computing the
 gradient having already changed the weight.
 
-## An honest negative result
+## An honest negative result — and a partial fix
 
 `main.py --task spiral` trains against two interleaved spirals — a
-classic hard case for plain SGD on a small network. It does **not**
-reliably converge with this architecture: training accuracy sits at
-~50% (equivalent to random guessing on a balanced binary task) even with
-a wider network and 2,000 epochs, confirmed reproducibly across runs.
-This isn't a bug — tightly-wound spirals are a well-known stress case
-used in ML pedagogy specifically to motivate why plain vanilla SGD on a
-small MLP isn't enough in general, and why techniques like momentum,
-adaptive learning rates (Adam), or just a bigger/deeper network matter.
-No committed example image for this task, since it wouldn't show
-anything working — but the task is there to try (`--task spiral`), and
-this note exists so that outcome reads as documented, not silently
-dropped.
+classic hard case for plain SGD on a small network. With plain SGD it
+does **not** reliably converge: training accuracy sits at ~50%
+(equivalent to random guessing on a balanced binary task) even with a
+wider network and 2,000 epochs, confirmed reproducibly across runs. This
+isn't a bug — tightly-wound spirals are a well-known stress case used in
+ML pedagogy specifically to motivate why plain vanilla SGD on a small
+MLP isn't enough in general.
+
+`--momentum` was added afterward specifically to test whether the
+standard fix (classic momentum SGD: `v = momentum*v - lr*grad; w += v`,
+implemented in `Dense.apply_gradients` and threaded through
+`Sequential.train_step`/`train_epoch`) actually addresses this. It
+**helps substantially but doesn't fully solve it**: with a wider network
+(32 hidden units per layer instead of 16/12), `learning_rate=0.02`,
+`momentum=0.9`, accuracy climbs from the ~50% random-guessing floor to
+the **70-87%** range over a few thousand epochs, but the loss curve
+plateaus with visible oscillation rather than converging cleanly to
+~100%. Tuning momentum without lowering the learning rate to compensate
+made things *worse*, not better — one run with `learning_rate=0.05,
+momentum=0.9` got stuck completely flat, a reminder that momentum
+amplifies whatever learning rate you give it, for better or worse, and
+isn't a substitute for tuning both together. The honest reading: this
+is real, measured progress from a real (if standard) technique, not a
+solved problem — getting the rest of the way to full convergence is left
+as one of the possible expansions below rather than something chased to
+completion here. No committed example image for `spiral`, since neither
+version reliably produces a boundary worth showing — but the task and
+`--momentum` flag are both there to try, and this note exists so both
+outcomes read as documented, not silently dropped.
 
 ## Usage
 
@@ -94,7 +111,7 @@ python3 main.py --task circle --seed 1 --epochs 400 --output boundary.png
 |---|---|
 | `--task` | `circle`, `xor_blobs`, or `spiral` (see above) |
 | `--seed` | RNG seed for both the dataset and initial weights |
-| `--epochs` / `--learning-rate` | training hyperparameters |
+| `--epochs` / `--learning-rate` / `--momentum` | training hyperparameters (`--momentum 0` is plain SGD, the default) |
 | `--output` | output PNG path for the decision-boundary visualization |
 
 Or as a library:
@@ -120,17 +137,20 @@ pip install -r requirements.txt
 python3 -m pytest
 ```
 
-45 tests: activation functions (including that sigmoid doesn't overflow
+50 tests: activation functions (including that sigmoid doesn't overflow
 on extreme inputs), layer forward/backward mechanics (backward provably
 doesn't mutate weights, `apply_gradients` moves weights by exactly
-`-lr * gradient`), loss functions, network training (a single example's
-loss provably decreases, XOR is learned to 100% accuracy, zero learning
-rate leaves weights unchanged), and the gradient-checking suite described
+`-lr * gradient` with momentum=0, and with momentum>0 the velocity
+accumulates across calls exactly as hand-computed), loss functions,
+network training (a single example's loss provably decreases with and
+without momentum, XOR is learned to 100% accuracy, zero learning rate
+leaves weights unchanged), and the gradient-checking suite described
 above.
 
 ## Possible expansions
 
-- Momentum / Adam optimizer (motivated directly by the spiral task above)
+- Adam (adaptive per-parameter learning rates) or further momentum/
+  learning-rate tuning to close the remaining gap on the spiral task
 - Softmax + categorical cross-entropy for multi-class classification
 - Mini-batching (currently pure online/stochastic, one example at a time)
 - Convolutional layers

@@ -86,6 +86,7 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--epochs", type=int, default=400)
     parser.add_argument("--learning-rate", type=float, default=0.3)
+    parser.add_argument("--momentum", type=float, default=0.0)
     parser.add_argument("--output", default="boundary.png")
     args = parser.parse_args()
 
@@ -98,7 +99,7 @@ def main() -> int:
     ])
 
     for epoch in range(args.epochs):
-        loss = net.train_epoch(dataset, MSE, args.learning_rate)
+        loss = net.train_epoch(dataset, MSE, args.learning_rate, args.momentum)
         if epoch % max(1, args.epochs // 5) == 0:
             print(f"epoch {epoch}: loss={loss:.4f}")
 

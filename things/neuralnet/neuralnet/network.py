@@ -16,7 +16,9 @@ class Sequential:
             x = layer.forward(x)
         return x
 
-    def train_step(self, x: List[float], y: List[float], loss_fn: Loss, learning_rate: float) -> float:
+    def train_step(
+        self, x: List[float], y: List[float], loss_fn: Loss, learning_rate: float, momentum: float = 0.0
+    ) -> float:
         pred = self.forward(x)
         loss = loss_fn.forward(pred, y)
 
@@ -27,12 +29,14 @@ class Sequential:
             per_layer_grads.append((layer, grad_weights, grad_biases))
 
         for layer, grad_weights, grad_biases in per_layer_grads:
-            layer.apply_gradients(grad_weights, grad_biases, learning_rate)
+            layer.apply_gradients(grad_weights, grad_biases, learning_rate, momentum)
 
         return loss
 
-    def train_epoch(self, dataset: List[tuple], loss_fn: Loss, learning_rate: float) -> float:
+    def train_epoch(
+        self, dataset: List[tuple], loss_fn: Loss, learning_rate: float, momentum: float = 0.0
+    ) -> float:
         total = 0.0
         for x, y in dataset:
-            total += self.train_step(x, y, loss_fn, learning_rate)
+            total += self.train_step(x, y, loss_fn, learning_rate, momentum)
         return total / len(dataset)
