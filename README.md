@@ -22,3 +22,23 @@ else in the repo.
 
 More things get added over time — new projects, or expansions of existing
 ones.
+
+## Running the tests
+
+Each thing has its own test suite and its own `pyproject.toml`/pythonpath
+config, meant to be run from inside that thing's directory:
+
+```bash
+cd things/chess && pip install -r requirements.txt && python3 -m pytest
+```
+
+To run all of them at once:
+
+```bash
+./run_all_tests.sh
+```
+
+(This runs each in its own subprocess rather than one combined pytest
+invocation — several things share test file basenames like
+`test_render.py`, and these are deliberately independent projects, not
+one big package.)
