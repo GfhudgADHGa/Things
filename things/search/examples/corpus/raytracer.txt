@@ -1,0 +1,4 @@
+A ray tracer simulates light by casting rays from a camera through each
+pixel and finding the nearest intersection with a scene of spheres or
+planes. Diffuse, metal, and glass materials scatter each ray differently,
+and recursive bounces naturally produce shadows and reflections.

@@ -1,0 +1,4 @@
+A chess engine generates every legal move, evaluates the resulting
+positions with alpha-beta pruning, and picks the best move within a
+time budget. Move generation correctness is checked against published
+perft counts.

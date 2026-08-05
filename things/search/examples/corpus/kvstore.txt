@@ -1,0 +1,3 @@
+A key-value store durably persists writes to a write-ahead log, fsyncing
+before returning so a crash never loses an acknowledged write. Recovery
+replays the log and stops cleanly at the first sign of corruption.

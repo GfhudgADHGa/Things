@@ -1,0 +1,3 @@
+Raft elects a single leader per term and replicates a log of commands to
+a majority of nodes before considering an entry committed. A partitioned
+minority can never elect a leader or make progress on its own.
