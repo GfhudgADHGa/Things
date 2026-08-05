@@ -15,6 +15,7 @@ else in the repo.
 | [`roguelike`](things/roguelike/) | A terminal dungeon crawler: procedural levels, fog of war, turn-based combat, leveling, save/load. Playable with `curses`. |
 | [`pebble`](things/pebble/) | A small scripting language, implemented from scratch: hand-written lexer, recursive-descent parser, tree-walking interpreter with closures. |
 | [`chess`](things/chess/) | A chess engine: full legal move generation (verified against known perft values), alpha-beta search, playable from the terminal. |
+| [`regex`](things/regex/) | A regex engine built on Thompson NFA construction — no backtracking, so it's immune to catastrophic ReDoS blowup (verified against Python's `re`, which isn't). |
 
 More things get added over time — new projects, or expansions of existing
 ones.
