@@ -1,0 +1,8 @@
+pytest
+# Test-only: an independent, real AES implementation used as a live
+# oracle in test_aes.py. The core library (crypto/) has zero
+# dependencies, including on this -- it's needed to run the full test
+# suite, not to use sha256()/hmac_sha256()/AES128/cbc_encrypt/cbc_decrypt.
+# Those oracle tests are skipped (not failed) if this isn't available.
+cryptography
+cffi
