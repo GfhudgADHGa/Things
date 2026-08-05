@@ -25,6 +25,7 @@ else in the repo.
 | [`neuralnet`](things/neuralnet/) | A feedforward neural network from scratch (dense layers, backprop, SGD) — proven correct via numerical gradient checking (~2.7e-9 relative error) rather than just "the loss went down", plus an honest negative result: plain SGD doesn't converge on a spiral-classification task. |
 | [`minidb`](things/minidb/) | A small SQL engine from scratch: tokenizer, recursive-descent parser, in-memory tables, and a query executor (WHERE/JOIN/GROUP BY/ORDER BY/aggregates) — verified by cross-checking every query against Python's own `sqlite3` module as an oracle, which caught two real semantic bugs (case-sensitive `LIKE`, floor- instead of truncating-division). |
 | [`jpeg`](things/jpeg/) | A baseline JPEG encoder from scratch: block DCT, standard quantization/Huffman tables, and real JFIF file output — proven with a hand-derived closed-form check on the DCT itself (a constant block's transform must be exactly DC-only), then with Pillow as an independent decode oracle across sizes, qualities, and 20 randomized trials. |
+| [`raft`](things/raft/) | A from-scratch Raft consensus implementation (leader election + log replication) plus a deterministic fault-injection network simulator — proven via 120 randomized trials of message loss, partitions, and leader crashes checking the Raft paper's actual safety invariants, which caught two real single-node-cluster edge-case bugs and one overly-strong test assertion along the way. |
 
 More things get added over time — new projects, or expansions of existing
 ones.
