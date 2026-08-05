@@ -12,6 +12,8 @@ python3 main.py --mode elementary --rule 90 --output rule90.png
 |---|---|---|
 | ![Rule 30](examples/rule30.png) | ![Rule 90](examples/rule90.png) | ![Rule 110](examples/rule110.png) |
 
+![The Gosper glider gun firing gliders diagonally](examples/glider_gun.gif)
+
 ## The correctness proof: exact facts, not a reference implementation
 
 **Game of Life** (`grid.py`) is checked against well-documented, exact
@@ -43,6 +45,22 @@ randomized "soups" and three different birth/survival rule sets
 rule), specifically so a transcription bug in one is unlikely to be
 replicated in the other.
 
+**The Gosper glider gun** (`GOSPER_GLIDER_GUN` in `patterns.py`) gets a
+proof in the same spirit, but for a much richer claim: it's not periodic
+or fixed, it grows forever, one glider at a time, every 30 generations.
+`test_glider_gun.py` checks the exact closed-form consequence --
+`population(30*k) == 36 + 5*k` for every k from 1 to 20, run against the
+real simulation rather than assumed -- plus a direct structural check
+that the extra cells really are glider-shaped: every 5-cell connected
+component present at generation 300 is extracted and matched (up to
+translation) against the glider's own 4 canonical rotation-free phases,
+not just counted. An earlier version of the test also asserted
+population never decreases generation-by-generation, which turned out
+to be false and is now documented as the actual (and more interesting)
+finding: population dips and recovers *within* each 30-step cycle as
+the gun's internal oscillator runs, and only the once-per-cycle sampled
+values are strictly increasing.
+
 **Rule 90** (`elementary.py`) gets an even stronger proof: starting from
 a single live cell, it produces *exactly* Pascal's triangle mod 2 (the
 Sierpinski triangle above) — a well-known, independently provable fact
@@ -60,7 +78,8 @@ life/
   grid.py         Game of Life / Life-like rules: step, step_bruteforce
                     (the cross-check), run, normalize
   patterns.py       named patterns with their documented exact properties
-                     (still lifes, oscillators + periods, the glider)
+                     (still lifes, oscillators + periods, the glider,
+                     the Gosper glider gun)
   elementary.py       Wolfram's elementary 1D CA: rule_table, step, run
 ```
 
@@ -68,6 +87,7 @@ life/
 
 ```bash
 python3 main.py --mode life --pattern glider --width 20 --height 20 --generations 40 --output glider.gif
+python3 main.py --mode life --pattern gun --width 70 --height 40 --generations 120 --output gun.gif
 python3 main.py --mode elementary --rule 110 --width 120 --generations 100 --output rule110.png
 ```
 
@@ -92,21 +112,23 @@ pip install -r requirements.txt
 python3 -m pytest
 ```
 
-578 tests: every still life, oscillator, and the glider checked against
+602 tests: every still life, oscillator, and the glider checked against
 its exact documented property, 400+ randomized cross-checks between the
 two independent Game-of-Life step implementations (including non-Conway
-rule sets and a bounding-box-growth invariant), and the Rule 90 /
-Pascal's-triangle closed-form check across 35 generations plus
-structural tests of the elementary CA step function (boundary handling,
-row-length preservation, rule-table decoding).
+rule sets and a bounding-box-growth invariant), the Rule 90 /
+Pascal's-triangle closed-form check across 35 generations, structural
+tests of the elementary CA step function (boundary handling, row-length
+preservation, rule-table decoding), and the Gosper glider gun's exact
+`population(30k) == 36 + 5k` closed form across k = 1..20 plus a
+structural check that emitted cells really are glider-shaped.
 
 ## Possible expansions
 
 - Hashlife (the exponential-speedup algorithm for simulating extremely
   large patterns very far into the future) — a genuinely different,
   much more involved algorithm than either step function here
-- A glider gun (a still-unproven-by-hand-derivation-here pattern that
-  periodically emits gliders) as a fourth category of documented exact
-  behavior
 - Totalistic and higher-neighborhood cellular automata beyond the
   elementary (radius-1, 2-state) rules covered here
+- A second, structurally different glider gun (e.g. a period-46 or
+  other known gun) cross-checked to confirm its own documented period
+  and emission rate, the way the Gosper gun's is checked here

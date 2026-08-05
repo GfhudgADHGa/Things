@@ -13,7 +13,7 @@ from PIL import Image
 from life.elementary import run as run_elementary
 from life.elementary import single_seed_row
 from life.grid import run as run_life
-from life.patterns import GLIDER
+from life.patterns import GLIDER, GOSPER_GLIDER_GUN
 
 CELL_SIZE = 8
 BG = (15, 15, 20)
@@ -53,7 +53,7 @@ def render_elementary_png(rule, width, generations, output):
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mode", choices=["life", "elementary"], default="life")
-    parser.add_argument("--pattern", choices=["glider", "soup"], default="soup")
+    parser.add_argument("--pattern", choices=["glider", "soup", "gun"], default="soup")
     parser.add_argument("--rule", type=int, default=90, help="elementary CA rule number, 0-255")
     parser.add_argument("--width", type=int, default=40)
     parser.add_argument("--height", type=int, default=30)
@@ -66,6 +66,8 @@ def main() -> int:
         output = args.output or "life.gif"
         if args.pattern == "glider":
             cells = frozenset((x + 2, y + 2) for x, y in GLIDER)
+        elif args.pattern == "gun":
+            cells = frozenset((x + 1, y + 1) for x, y in GOSPER_GLIDER_GUN)
         else:
             rng = random.Random(args.seed)
             cells = _random_soup(rng, args.width, args.height)
