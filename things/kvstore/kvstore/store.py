@@ -6,7 +6,7 @@ in-memory index, tolerating a torn or corrupt trailing record.
 from __future__ import annotations
 
 import os
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 from .record import OP_DELETE, OP_PUT, encode_record, read_valid_records
 
@@ -58,6 +58,28 @@ class KVStore:
 
     def keys(self) -> List[str]:
         return list(self.index.keys())
+
+    def range_query(
+        self, start_key: Optional[str] = None, end_key: Optional[str] = None
+    ) -> List[Tuple[str, str]]:
+        """Returns (key, value) pairs with start_key <= key < end_key, sorted
+        by key. Either bound may be omitted (None) for an open range.
+
+        The index is a plain dict, not an ordered structure, so this sorts
+        on every call -- O(n log n) rather than the O(log n + k) a real
+        range-query engine (B-tree, LSM with sorted SSTables) would give.
+        Correct and simple; genuinely not the efficient version. See the
+        README's "possible expansions" note about a real index structure --
+        this doesn't attempt to be that.
+        """
+        return sorted(
+            (
+                (key, value)
+                for key, value in self.index.items()
+                if (start_key is None or key >= start_key)
+                and (end_key is None or key < end_key)
+            )
+        )
 
     def compact(self) -> None:
         """Rewrites the log to contain only the current value of each key

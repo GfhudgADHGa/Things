@@ -17,7 +17,7 @@ def main() -> int:
 
     with KVStore(args.path) as db:
         print(f"kvstore REPL on {args.path} ({len(db)} keys loaded). Commands:")
-        print("  put <key> <value...>   get <key>   del <key>   keys   compact   quit")
+        print("  put <key> <value...>   get <key>   del <key>   keys   range [start] [end]   compact   quit")
         while True:
             try:
                 line = input("> ")
@@ -58,6 +58,14 @@ def main() -> int:
             elif cmd == "keys":
                 for k in db.keys():
                     print(k)
+            elif cmd == "range":
+                if len(args_) > 2:
+                    print("usage: range [start] [end]")
+                    continue
+                start = args_[0] if len(args_) >= 1 else None
+                end = args_[1] if len(args_) >= 2 else None
+                for k, v in db.range_query(start, end):
+                    print(f"{k} = {v}")
             elif cmd == "compact":
                 before = os.path.getsize(db.path)
                 db.compact()

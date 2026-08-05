@@ -67,6 +67,20 @@ This is verified in `test_crash_mid_compaction_never_loses_the_original_log`
 by monkeypatching `os.replace` to raise mid-compaction and asserting the
 original file's bytes are unchanged afterward.
 
+## Range queries
+
+`range_query(start_key=None, end_key=None)` returns `(key, value)` pairs
+with `start_key <= key < end_key`, sorted — either bound can be omitted
+for an open range. Deliberately the naive version: the index is a plain
+`dict`, not an ordered structure, so this sorts on every call
+(`O(n log n)`) rather than the `O(log n + k)` a real range-query engine
+(B-tree, or an LSM tree's sorted SSTables) would give. It's correct and
+simple, checked against a naive filter-then-sort baseline over 100 random
+keys in `test_range_matches_naive_filter_sort_baseline` — and it's
+honestly *the same thing as that baseline* under the hood, not a
+different, faster path. See "Possible expansions" below for what an
+actually-indexed version would need.
+
 ## Usage
 
 ```bash
@@ -77,6 +91,8 @@ ok
 Claude
 > keys
 name
+> range
+name = Claude
 > compact
 compacted: 41 bytes -> 20 bytes
 > quit
@@ -89,7 +105,7 @@ kvstore/
   record.py   binary record format + read_valid_records() (the
                 crash-tolerant reader that never raises on bad input)
   store.py     KVStore: in-memory index + WAL file, put/get/delete/
-                compact, recovery on open
+                range_query/compact, recovery on open
 ```
 
 ## Tests
@@ -99,18 +115,20 @@ pip install -r requirements.txt
 python3 -m pytest
 ```
 
-33 tests: record encode/decode round-tripping including binary-unsafe
+44 tests: record encode/decode round-tripping including binary-unsafe
 edge cases, every discard path in the reader (truncated header, truncated
 body, bad checksum, corruption mid-stream), the store's basic operations
 and persistence-across-reopen, compaction (including that it's usable
-immediately afterward and survives a second reopen), and the crash
-simulations described above.
+immediately afterward and survives a second reopen), range queries
+(inclusive/exclusive boundaries, open ranges, deleted/overwritten keys,
+survives reopen, matches a naive baseline), and the crash simulations
+described above.
 
 ## Possible expansions
 
 - Concurrent access (currently single-process, no file locking)
 - A real index structure (B-tree/LSM) instead of an in-memory dict, so
-  the working set isn't bounded by RAM
-- Range queries
+  the working set isn't bounded by RAM *and* so `range_query` stops
+  needing to sort the entire index on every call
 - Configurable fsync policy (batch writes for throughput, at the cost of
   a small durability window) with a benchmark showing the tradeoff
